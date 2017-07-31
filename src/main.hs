@@ -26,18 +26,20 @@ import System.Exit (exitSuccess)
 
 
 
-type GameMap = ([[Char]], (Int, Int))
+data GameMap = GameMap { _gameMap :: [[Char]]
+                       , _mapSize :: (Int, Int)
+                       }
+makeLenses ''GameMap
 
-mapex = (
+mapex = GameMap
       ["################"
       ,"#              #"
       ,"#              #"
       ,"#              #"
       ,"#              #"
       ,"################"
-      ]
-      , (16, 6)
-      )
+      ] (16, 6)
+                 
 
 data Input = Up
            | Down 
@@ -46,7 +48,7 @@ data Input = Up
            | Exit
            deriving (Eq, Show)
 
-data Command = Move (Int, Int)
+data Command = Move (Int, Int) --Move (dx, dy)
              | Attack
 
 data Position = Position 
@@ -84,14 +86,17 @@ e = [Enemy (Object (Position 1 1) '$'), Enemy (Object (Position 4 4) '$')]
 --type App = StateT GameState IO
 
 
-type GameState = Player
-
+data GameState = GameState { _player :: Player
+                           , _enemies :: [Enemy]
+                           , _currentMap :: GameMap
+                           }
+makeLenses ''GameState                           
 ----------------------------
     --helper functions--
 ----------------------------
 
 printMap :: GameMap -> IO ()
-printMap (map, size) = setCursorPosition 0 0 >> mapM_ (putStrLn) map
+printMap m = setCursorPosition 0 0 >> mapM_ (putStrLn) (m^.gameMap) 
 
 updatePosition :: (HasObject a Object) => (Int, Int) -> a -> a
 updatePosition (dx, dy) obj = obj & ((object.position.x) +~ dx) . ((object.position.y) +~ dy)
@@ -129,17 +134,19 @@ gameLoop = do
     gameLoop
 -}
 
+--handleInput :: StateT GameState IO ()
+
+
 updateState :: Command -> StateT GameState IO ()
-updateState (Move dir) = modify $ updatePosition dir
+updateState (Move dir) = modify $ over player $ updatePosition dir 
 
+initialState = GameState p e mapex
 
+--e & (object.position.x) .~ 155
 gameLoop :: StateT GameState IO ()
 gameLoop = do
     lift clearScreen
-    lift $ printMap mapex
-    st <- get 
-    lift . printObject $ st
-    lift $ mapM_ printObject e
+    drawScreen
     input <- (lift getInput)
     case input of
       Exit -> lift handleExit
@@ -179,13 +186,15 @@ initialize = do
 
 drawScreen :: StateT GameState IO ()
 drawScreen = do
-    st <- get
-    lift . printObject $ st
+    lift $ printMap mapex
+    st <- get 
+    lift . printObject $ st^.player
+    lift $ mapM_ printObject $ st^.enemies 
 
 
 main = do
     initialize
-    evalStateT gameLoop p
+    evalStateT gameLoop initialState
 
 handleExit = do
   clearScreen

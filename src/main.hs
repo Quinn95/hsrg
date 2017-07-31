@@ -2,7 +2,9 @@
            , MultiParamTypeClasses
            , FunctionalDependencies
            , FlexibleContexts
+           , RankNTypes
     #-}
+
 
 module Main where
 
@@ -17,6 +19,7 @@ import Control.Monad.State
 
 
 import Control.Lens
+import Control.Lens.Traversal
 
 import Control.Monad.IO.Class (liftIO)
 
@@ -148,6 +151,8 @@ handleInput = do
       _    -> (liftIO $ getCommand input) 
 
 
+
+{-
 updateState :: Command -> StateT GameState IO ()
 updateState (Move dir@(dx, dy)) = do
     m <- gets (view currentMap)
@@ -156,18 +161,40 @@ updateState (Move dir@(dx, dy)) = do
     if ((getMapTile m ((xpos+dx), (ypos+dy))) /= '#')
        then modify $ over player $ updatePosition dir 
        else return ()
+-}
+
+updateState :: (HasObject a Object) => Lens' GameState a -> Command -> StateT GameState IO ()
+updateState obj (Move dir@(dx, dy)) = do
+    m <- gets (view currentMap)
+    xpos <- gets (view $ obj.object.position.x)
+    ypos <- gets (view $ obj.object.position.y)
+    if ((getMapTile m ((xpos+dx), (ypos+dy))) /= '#')
+       then modify $ over obj $ updatePosition dir 
+       else return ()
+
+
+
 
 
 initialState = GameState p e mapex
 
 --e & (object.position.x) .~ 155
+
+{-
 gameLoop :: StateT GameState IO ()
 gameLoop = do
     drawScreen
     command <- handleInput
     updateState command 
     gameLoop
+-}
 
+gameLoop :: StateT GameState IO ()
+gameLoop = do
+    drawScreen
+    command <- handleInput
+    updateState (player) command
+    gameLoop
 
 
 getInput :: IO Input

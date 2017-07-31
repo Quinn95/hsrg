@@ -33,10 +33,10 @@ makeLenses ''GameMap
 
 mapex = GameMap
       ["################"
-      ,"#              #"
-      ,"#              #"
-      ,"#              #"
-      ,"#              #"
+      ,"#..............#"
+      ,"#..............#"
+      ,"#..............#"
+      ,"#..............#"
       ,"################"
       ] (16, 6)
                  
@@ -49,7 +49,7 @@ data Input = Up
            deriving (Eq, Show)
 
 data Command = Move (Int, Int) --Move (dx, dy)
-             | Attack
+             | Throw
 
 data Position = Position 
     { _x :: Int
@@ -106,16 +106,16 @@ collide x y = x^.object.position == y^.object.position
 
 printObject :: HasObject a Object => a -> IO ()
 printObject obj = do
-    setCursorPosition (obj^.object.position.x) (obj^.object.position.y)
+    setCursorPosition (obj^.object.position.y) (obj^.object.position.x)
     putChar $ obj^.object.icon
 
 ----------------------------
 
 getCommand :: Input -> IO Command
-getCommand Up = return $ Move (-1, 0)
-getCommand Down = return $ Move (1, 0)
-getCommand Left = return $ Move (0, -1)
-getCommand Right = return $ Move (0, 1)
+getCommand Up = return $ Move (0, -1)
+getCommand Down = return $ Move (0, 1)
+getCommand Left = return $ Move (-1, 0)
+getCommand Right = return $ Move (1, 0)
 getCommand _ = error "whoops"
 
 {-
@@ -134,8 +134,13 @@ gameLoop = do
     gameLoop
 -}
 
---handleInput :: StateT GameState IO ()
-
+handleInput :: StateT GameState IO Command
+handleInput = do
+    input <- (lift getInput)
+    case input of
+      Exit -> lift handleExit
+      _    -> (lift $ getCommand input) 
+ 
 
 updateState :: Command -> StateT GameState IO ()
 updateState (Move dir) = modify $ over player $ updatePosition dir 
@@ -145,12 +150,9 @@ initialState = GameState p e mapex
 --e & (object.position.x) .~ 155
 gameLoop :: StateT GameState IO ()
 gameLoop = do
-    lift clearScreen
     drawScreen
-    input <- (lift getInput)
-    case input of
-      Exit -> lift handleExit
-      _    -> (lift $ getCommand input) >>= updateState --(\command -> updateState command)            
+    command <- handleInput
+    updateState command 
     gameLoop
 
 
@@ -186,10 +188,19 @@ initialize = do
 
 drawScreen :: StateT GameState IO ()
 drawScreen = do
+    lift clearScreen
     lift $ printMap mapex
     st <- get 
     lift . printObject $ st^.player
     lift $ mapM_ printObject $ st^.enemies 
+    drawInfoText
+
+drawInfoText :: StateT GameState IO ()
+drawInfoText = do
+    m <- gets $ view player 
+    lift $ setCursorPosition 0 20
+    lift . putStr . show $ m 
+    
 
 
 main = do

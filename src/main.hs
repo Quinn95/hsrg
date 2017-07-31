@@ -24,6 +24,7 @@ import Control.Monad
 
 import System.Exit (exitSuccess)
 
+import System.Random
 
 
 data GameMap = GameMap { _gameMap :: [[Char]]
@@ -46,10 +47,11 @@ data Input = Up
            | Left
            | Right
            | Exit
+           | PassI
            deriving (Eq, Show)
 
 data Command = Move (Int, Int) --Move (dx, dy)
-             | Throw
+             | Pass 
 
 data Position = Position 
     { _x :: Int
@@ -144,7 +146,7 @@ handleInput = do
     case input of
       Exit -> liftIO handleExit
       _    -> (liftIO $ getCommand input) 
- 
+
 
 updateState :: Command -> StateT GameState IO ()
 updateState (Move dir@(dx, dy)) = do
@@ -154,6 +156,7 @@ updateState (Move dir@(dx, dy)) = do
     if ((getMapTile m ((xpos+dx), (ypos+dy))) /= '#')
        then modify $ over player $ updatePosition dir 
        else return ()
+
 
 initialState = GameState p e mapex
 
@@ -177,6 +180,22 @@ getInput = do
       'd' -> return Right
       'q' -> return Exit
       _   -> getInput
+
+
+aiRandomCommand :: StateT GameState IO Command
+aiRandomCommand = do
+    c <- lift (randomIO :: IO Int)
+    case (mod 2 c) of
+      0 -> do
+          xcoord <- lift (randomIO :: IO Int)
+          ycoord <- lift (randomIO :: IO Int)
+          return $ Move (xcoord, ycoord)
+      1 -> return Pass 
+
+
+
+
+
 
 {- 
 handleInput :: Input -> (Int, Int)

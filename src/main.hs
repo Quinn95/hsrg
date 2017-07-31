@@ -63,6 +63,7 @@ type Icon = Char
 data Object = Object
     { _position :: Position
     , _icon :: Icon 
+    , _health :: Int
     } deriving Show
 makeLenses ''Object
 
@@ -77,9 +78,9 @@ data Enemy = Enemy
 $(makeFields ''Enemy)
 
 
-p = Player (Object (Position 5 5) '@')
+p = Player (Object (Position 5 5) '@' 10)
 
-e = [Enemy (Object (Position 1 1) '$'), Enemy (Object (Position 4 4) '$')]
+e = [Enemy (Object (Position 1 1) '$' 10), Enemy (Object (Position 4 4) '$' 10)]
 
 --e & (object.position.x) .~ 155
 
@@ -109,6 +110,9 @@ printObject obj = do
     setCursorPosition (obj^.object.position.y) (obj^.object.position.x)
     putChar $ obj^.object.icon
 
+getMapTile :: GameMap -> (Int, Int) -> Char
+getMapTile m (x, y) = (m^.gameMap) !! y !! x
+
 ----------------------------
 
 getCommand :: Input -> IO Command
@@ -136,14 +140,20 @@ gameLoop = do
 
 handleInput :: StateT GameState IO Command
 handleInput = do
-    input <- (lift getInput)
+    input <- (liftIO getInput)
     case input of
-      Exit -> lift handleExit
-      _    -> (lift $ getCommand input) 
+      Exit -> liftIO handleExit
+      _    -> (liftIO $ getCommand input) 
  
 
 updateState :: Command -> StateT GameState IO ()
-updateState (Move dir) = modify $ over player $ updatePosition dir 
+updateState (Move dir@(dx, dy)) = do
+    m <- gets (view currentMap)
+    xpos <- gets (view $ player.object.position.x)
+    ypos <- gets (view $ player.object.position.y)
+    if ((getMapTile m ((xpos+dx), (ypos+dy))) /= '#')
+       then modify $ over player $ updatePosition dir 
+       else return ()
 
 initialState = GameState p e mapex
 
@@ -188,18 +198,20 @@ initialize = do
 
 drawScreen :: StateT GameState IO ()
 drawScreen = do
-    lift clearScreen
-    lift $ printMap mapex
+    liftIO clearScreen
+    liftIO $ printMap mapex
     st <- get 
-    lift . printObject $ st^.player
-    lift $ mapM_ printObject $ st^.enemies 
+    liftIO . printObject $ st^.player
+    liftIO $ mapM_ printObject $ st^.enemies 
     drawInfoText
 
 drawInfoText :: StateT GameState IO ()
 drawInfoText = do
-    m <- gets $ view player 
-    lift $ setCursorPosition 0 20
-    lift . putStr . show $ m 
+--    m <- gets $ view player 
+    textPosition <- gets $ view $ currentMap.mapSize._2
+    liftIO $ setCursorPosition textPosition 0
+    health <- gets $ view $ player.object.health
+    liftIO $ putStr . show $ health
     
 
 

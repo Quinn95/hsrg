@@ -46,6 +46,9 @@ data Input = Up
            | Exit
            deriving (Eq, Show)
 
+data Command = Move (Int, Int)
+             | Attack
+
 data Position = Position 
     { _x :: Int
     , _y :: Int
@@ -74,7 +77,7 @@ $(makeFields ''Enemy)
 
 p = Player (Object (Position 5 5) '@')
 
-e = Enemy (Object (Position 5 5) '$')
+e = [Enemy (Object (Position 1 1) '$'), Enemy (Object (Position 4 4) '$')]
 
 --e & (object.position.x) .~ 155
 
@@ -103,6 +106,31 @@ printObject obj = do
 
 ----------------------------
 
+getCommand :: Input -> IO Command
+getCommand Up = return $ Move (-1, 0)
+getCommand Down = return $ Move (1, 0)
+getCommand Left = return $ Move (0, -1)
+getCommand Right = return $ Move (0, 1)
+getCommand _ = error "whoops"
+
+{-
+gameLoop :: StateT GameState IO ()
+gameLoop = do
+    lift clearScreen
+    lift $ printMap mapex
+    st <- get 
+    lift . printObject $ st
+    lift $ mapM_ printObject e
+    command <- (lift getInput)
+    case command of
+      Exit -> lift handleExit
+      _    -> let dxdy = handleInput command in 
+                  modify $ updatePosition dxdy 
+    gameLoop
+-}
+
+updateState :: Command -> StateT GameState IO ()
+updateState (Move dir) = modify $ updatePosition dir
 
 
 gameLoop :: StateT GameState IO ()
@@ -111,12 +139,14 @@ gameLoop = do
     lift $ printMap mapex
     st <- get 
     lift . printObject $ st
-    command <- (lift getInput)
-    case command of
+    lift $ mapM_ printObject e
+    input <- (lift getInput)
+    case input of
       Exit -> lift handleExit
-      _    -> let dxdy = handleInput command in 
-                  modify $ updatePosition dxdy 
+      _    -> (lift $ getCommand input) >>= updateState --(\command -> updateState command)            
     gameLoop
+
+
 
 getInput :: IO Input
 getInput = do
@@ -129,12 +159,14 @@ getInput = do
       'q' -> return Exit
       _   -> getInput
 
+{- 
 handleInput :: Input -> (Int, Int)
 handleInput Up = (-1, 0)
 handleInput Down = (1, 0)
 handleInput Left = (0, -1)
 handleInput Right = (0, 1)
 handleInput _ = error "Whoops"
+-}
 
 initialize :: IO ()
 initialize = do

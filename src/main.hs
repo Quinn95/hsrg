@@ -147,6 +147,7 @@ updateState obj (Move dir@(dx, dy)) = do
        else return ()
 -}
 
+
 updateState :: (HasObject a Object) => GameState -> Command -> a -> a 
 updateState gs (Move dir@(dx, dy)) obj = 
     if ((getMapTile m ((xpos+dx), (ypos+dy))) /= '#')
@@ -176,7 +177,8 @@ gameLoop = do
     command <- handleInput
     st <- get
     modify $ over player $ updateState st command
-    --mapM_ (modify $ over enemies updateState st (Move (1, 1))) $ st^.enemies
+    --mapM_ (enemies.traverse) (modify $ updateState st (Move (1, 1))) $ st 
+    modify $ over (enemies.traverse) $ updateState st command
     gameLoop
 
 getInput :: IO Input

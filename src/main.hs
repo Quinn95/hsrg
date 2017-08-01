@@ -127,21 +127,6 @@ getCommand Left = return $ Move (-1, 0)
 getCommand Right = return $ Move (1, 0)
 getCommand _ = error "whoops"
 
-{-
-gameLoop :: StateT GameState IO ()
-gameLoop = do
-    lift clearScreen
-    lift $ printMap mapex
-    st <- get 
-    lift . printObject $ st
-    lift $ mapM_ printObject e
-    command <- (lift getInput)
-    case command of
-      Exit -> lift handleExit
-      _    -> let dxdy = handleInput command in 
-                  modify $ updatePosition dxdy 
-    gameLoop
--}
 
 handleInput :: StateT GameState IO Command
 handleInput = do
@@ -172,10 +157,6 @@ updateState obj (Move dir@(dx, dy)) = do
        then modify $ over obj $ updatePosition dir 
        else return ()
 
-
-
-
-
 initialState = GameState p e mapex
 
 --e & (object.position.x) .~ 155
@@ -193,9 +174,8 @@ gameLoop :: StateT GameState IO ()
 gameLoop = do
     drawScreen
     command <- handleInput
-    updateState (player) command
+    updateState player command
     gameLoop
-
 
 getInput :: IO Input
 getInput = do

@@ -29,6 +29,7 @@ import System.Exit (exitSuccess)
 
 import System.Random
 
+import Data.List.Lens
 
 data GameMap = GameMap { _gameMap :: [[Char]]
                        , _mapSize :: (Int, Int)
@@ -135,19 +136,7 @@ handleInput = do
       Exit -> liftIO handleExit
       _    -> (liftIO $ getCommand input) 
 
-
-
 {-
-updateState :: Command -> StateT GameState IO ()
-updateState (Move dir@(dx, dy)) = do
-    m <- gets (view currentMap)
-    xpos <- gets (view $ player.object.position.x)
-    ypos <- gets (view $ player.object.position.y)
-    if ((getMapTile m ((xpos+dx), (ypos+dy))) /= '#')
-       then modify $ over player $ updatePosition dir 
-       else return ()
--}
-
 updateState :: (HasObject a Object) => Lens' GameState a -> Command -> StateT GameState IO ()
 updateState obj (Move dir@(dx, dy)) = do
     m <- gets (view currentMap)
@@ -156,25 +145,38 @@ updateState obj (Move dir@(dx, dy)) = do
     if ((getMapTile m ((xpos+dx), (ypos+dy))) /= '#')
        then modify $ over obj $ updatePosition dir 
        else return ()
+-}
+
+updateState :: (HasObject a Object) => GameState -> Command -> a -> a 
+updateState gs (Move dir@(dx, dy)) obj = 
+    if ((getMapTile m ((xpos+dx), (ypos+dy))) /= '#')
+       then updatePosition dir obj
+       else obj
+    where
+        m = gs^.currentMap
+        xpos = obj^.object.position.x
+        ypos = obj^.object.position.y
 
 initialState = GameState p e mapex
 
---e & (object.position.x) .~ 155
 
+--e & (object.position.x) .~ 155
 {-
 gameLoop :: StateT GameState IO ()
 gameLoop = do
     drawScreen
     command <- handleInput
-    updateState command 
+    updateState player command 
     gameLoop
--}
+    -}
 
 gameLoop :: StateT GameState IO ()
 gameLoop = do
     drawScreen
     command <- handleInput
-    updateState player command
+    st <- get
+    modify $ over player $ updateState st command
+    --mapM_ (modify $ over enemies updateState st (Move (1, 1))) $ st^.enemies
     gameLoop
 
 getInput :: IO Input
